@@ -1,0 +1,249 @@
+<html>
+
+<head>
+    <title>Chat-o-Rama</title>
+    <!-- <link rel='stylesheet' href='/stylesheets/style.css' /> -->
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript">
+    //---------------------------------------------------------
+    // functions to draw the chat windows from http://qnimate.com/facebook-style-chat-box-popup-using-javascript-and-css/#prettyPhoto
+    //
+
+    //this function can remove a array element.
+    Array.remove = function(array, from, to) {
+        var rest = array.slice((to || from) + 1 || array.length);
+        array.length = from < 0 ? array.length + from : from;
+        return array.push.apply(array, rest);
+    };
+
+    //this variable represents the total number of popups can be displayed according to the viewport width
+    var total_popups = 0;  //using this differently from the facebook example, contans count of existing users
+
+    //arrays of popups ids
+    var popups = [];
+
+    //this is used to close a popup
+    function close_popup(id)
+    {
+        for(var iii = 0; iii < popups.length; iii++)
+        {
+            if(id == popups[iii])
+            {
+                Array.remove(popups, iii);
+
+                document.getElementById(id).style.display = "none";
+
+                calculate_popups();
+
+                return;
+            }
+        }
+    }
+
+    //displays the popups. Displays based on the  number of popups in existing_users
+    function display_popups()
+    {
+        var right = 220;
+
+        var iii = 0;
+        for(iii; iii < total_popups; iii++)
+        {
+            if(popups[iii] !== undefined)
+            {
+                var element = document.getElementById(popups[iii]);
+                element.style.right = right + "px";
+                right = right + 320;
+                element.style.display = "block";
+            }
+        }
+
+        for(var jjj = iii; jjj < popups.length; jjj++)
+        {
+            var popupsDiv = document.getElementById(popups[jjj]);
+            popupsDiv.style.display = "none";
+        }
+    }
+
+    //creates markup for a new popup. Adds the id to popups array.
+    function register_popup(id, name)
+    {
+        console.log("register popup for " + id + " " + name);
+        // for(var iii = 0; iii < popups.length; iii++)
+        // {
+        //     //already registered. Bring it to front.
+        //     if(id == popups[iii])
+        //     {
+        //         Array.remove(popups, iii);
+        //         popups.unshift(id);
+        //         calculate_popups();
+        //         return;
+        //     }
+        // }
+        var theChats = document.getElementById('chats');
+        aDiv = document.createElement('name');
+        aDiv = '<div class="popup-box chat-popup" id="'+ id +'">';
+        aDiv = aDiv + '<div class="popup-head">';
+        aDiv = aDiv + '<div class="popup-head-left">'+ name +'</div>';
+        aDiv = aDiv + '<div style="clear: both"></div></div><div class="popup-messages"></div></div>';
+        console.log("aDiv =" + aDiv);
+        console.log(theChats);
+        theChats.appendChild(aDiv);
+        //document.getElementsByTagName("body")[0].innerHTML = document.getElementsByTagName("body")[0].innerHTML + element;
+
+        popups.push(id);
+
+        display_popups();
+
+    }
+
+    function initialize_existing_popups(existingUsersArray) {
+        //console.log("initialize_existing_popups " + existingUsersArray);
+        for( i = 0; i < existingUsersArray.length; i++) {
+            id = existingUsersArray[i].split(' ').join('_');
+            name = existingUsersArray[i];
+            console.log("user =" + id + " " + name);
+            register_popup(id, name);
+        }
+    }
+
+    //---------------------------------------------------------
+    // Connect to server and process events
+    //
+        $(document).ready(function() {
+            console.log("Running Chatroom.");
+            // Initialize the page
+            var socket = io.connect();
+
+            // cancel button on new user form
+            $("button[name = 'cancel']").click(function() {
+                console.log("cancel button click");
+                document.getElementById("newuser").reset();
+            });
+
+            // ok button on new user, emit the name and clear the entry screen div
+            $("button[name = 'OK']").click(function() {
+                console.log("OK button click");
+                var formData = $('form').serializeArray();
+                console.log(formData);
+                socket.emit("got_a_new_user", { input: formData}); //replace input with handle to form data
+            });
+
+            $("button[name = name]").click(function() {
+                console.log("quit button click");
+                socket.emit("quit", { input: name}); //quit chat for user name
+            });
+            // on initial load, show all the existing users
+            socket.on('existing_users', function(data) {
+                console.log('The server provides existing_users: ');
+                console.log(data);
+                var arr = [];
+                arr = $.map(data,function(el) { return el ;});
+                console.log(arr[0]);
+                // build the array and render
+                $("#entryScreen").remove();
+                initialize_existing_popups(arr);
+                // divQuit.innerHTML =  '<button id= "'+ name + '">Quit</button>';
+                // body.appendChild(divQuit);
+            });
+            // for every add user, show that user
+            socket.on('new_user', function(data) {
+                console.log('The server provides new_user: ');
+                console.log(data);
+                // add the one user
+                register_popup(data);
+            });
+        });
+    </script>
+
+    <style media="screen">
+        body{
+            background-color: linen;
+            font-family: Tahoma;
+        }
+        button{
+            float: right;
+        }
+        .login{
+            width: 200ßpx;
+            height: 100px;
+            background: white;
+            border: 3px solid slategray;
+            padding-left: 10px;
+        }
+
+        .chat-popup
+        {
+            /*display: none !important;*/
+        }
+        .popup-box
+         {
+             /*display: none;*/
+             position: fixed;
+             bottom: 200px;
+             right: 220px;
+             height: 150px;
+             background-color: rgb(237, 239, 244);
+             width: 180px;
+             border: 1px solid rgba(29, 49, 91, .3);
+         }
+
+         .popup-box .popup-head
+         {
+             background-color: #6d84b4
+             padding: 5px;
+             color: gray;
+             font-weight: bold;
+             font-size: 14px;
+             clear: both;
+         }
+
+         .popup-box .popup-head .popup-head-left
+         {
+             float: left;
+         }
+
+         .popup-box .popup-head .popup-head-right
+         {
+             float: right;
+             opacity: 0.5;
+         }
+
+         .popup-box .popup-head .popup-head-right a
+         {
+             text-decoration: none;
+             color: inherit;
+         }
+
+         .popup-box .popup-messages
+         {
+             height: 100%;
+             overflow-y: scroll;
+         }
+    </style>
+</head>
+
+<body>
+    <!-- entry screen will be deleted on OK -->
+    <div id= 'entryScreen'>
+        <h2>Chat-o-rama has <div class="Count" style="display:inline;">0</div> chatters(s)</h2>
+
+        <div class="login">
+            Enter your name: <br>
+            <form action='' id='newuser'>
+                <input type='text' name = 'user'><br>
+            </form>
+            <button name="cancel">Cancel</b>
+            <button name="OK">OK</b>
+        </div>
+    </div>
+
+    <!-- chats div will contain the chat boxes -->
+    <div id="chats"><div>
+        the chats will go here
+    </div>
+
+
+</body>
+
+</html>
